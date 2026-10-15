@@ -7,7 +7,7 @@ const CLASSES = ['I','II','III','IV','V','VI'].reduce((a,c)=>a.concat(c+' A',c+'
 const HABIT_COLUMNS = [7,9,11,13,15,17,19];
 const PHOTO_COLUMNS = {1:7,2:5,3:6};
 const PHOTO_NAMES = {1:'Beribadah',2:'Berolahraga',3:'Makan Sehat'};
-const MAX_PHOTO = 1572864;
+const MAX_PHOTO = 5242880;
 function fail_(message){const e=new Error(message);e.userFacing=true;throw e;}
 function book_(){return SpreadsheetApp.openById(SHEET_ID);}
 function sheet_(name){const s=book_().getSheetByName(name);if(!s)fail_('Tab database belum tersedia. Hubungi guru.');return s;}
@@ -21,7 +21,7 @@ function hash_(v){return Utilities.base64EncodeWebSafe(Utilities.computeDigest(U
 function json_(data){return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);}
 function doGet(){return json_({ok:true,data:{sekolah:'SD Negeri 3 Kesiman',timezone:TZ,tanggal:day_()}});}
 function doPost(e){try{
- if(!e||!e.postData||e.postData.contents.length>6600000)fail_('Permintaan tidak valid atau terlalu besar.');
+ if(!e||!e.postData||e.postData.contents.length>22000000)fail_('Permintaan tidak valid atau terlalu besar.');
  const req=JSON.parse(e.postData.contents);const p=req.payload||{};
  if(req.action==='publicSettings')return doGet();
  if(req.action==='submitJournal'||req.action==='updateJournal')return json_({ok:true,data:submit_(p)});
@@ -57,8 +57,8 @@ function validate_(p){
  return {kelas,absen,nama,tanggal,answers,editKey:p.editKey,consent:p.consent===true,id:tanggal+'|'+kelas+'|'+absen};
 }
 function validatePhoto_(p){
- const mimes=['image/jpeg','image/png','image/webp'];if(!p||mimes.indexOf(p.mime)<0||typeof p.data!=='string'||p.data.length>2097152||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))fail_('Foto harus JPG, PNG, atau WebP maksimal 1,5 MB.');
- const bytes=Utilities.base64Decode(p.data);const b=bytes.map(x=>(x+256)%256);
+ const mimes=['image/jpeg','image/png','image/webp'];if(!p||mimes.indexOf(p.mime)<0||typeof p.data!=='string'||p.data.length>6990508||!/^[A-Za-z0-9+/]+={0,2}$/.test(p.data))fail_('Foto harus JPG, PNG, atau WebP maksimal 5 MB.');
+ const bytes=Utilities.base64Decode(p.data);const b=bytes.slice(0,12).map(x=>(x+256)%256);
  const valid=p.mime==='image/jpeg'?b[0]===255&&b[1]===216&&b[2]===255:p.mime==='image/png'?[137,80,78,71,13,10,26,10].every((x,i)=>b[i]===x):String.fromCharCode.apply(null,b.slice(0,4))==='RIFF'&&String.fromCharCode.apply(null,b.slice(8,12))==='WEBP';
  if(bytes.length>MAX_PHOTO||bytes.length<16||!valid)fail_('Isi atau ukuran foto tidak valid.');return bytes;
 }

@@ -559,14 +559,15 @@ function Student() {
                           onChange={(e) => update(i, "note", e.target.value)}
                         />
                         {h.photo && answers[i].status === "Sudah" && (
+                          <>
                           <label className="upload">
                             <Camera size={20} />
                             <span>
                               {answers[i].photo
-                                ? "Foto sudah dipilih ✓"
+                                ? "Ganti foto pilihan"
                                 : `Tambahkan foto ${h.required ? "kegiatan" : "(opsional)"}`}
                               <small>
-                                JPG, PNG, WebP · Maks. 1,5 MB
+                                JPG, PNG, WebP · Maks. 5 MB
                                 {!h.required
                                   ? " · Foto ibadah tidak wajib"
                                   : ""}
@@ -578,20 +579,27 @@ function Student() {
                               accept="image/jpeg,image/png,image/webp"
                               required={h.required && !answers[i].photo}
                               onChange={async (e) => {
+                                const input = e.currentTarget;
+                                const file = input.files[0];
+                                if (!file) return;
+                                update(i, "photoError", "");
                                 try {
-                                  if (e.target.files[0])
                                     update(
                                       i,
                                       "photo",
-                                      await readPhoto(e.target.files[0]),
+                                      await readPhoto(file),
                                     );
                                 } catch (err) {
-                                  setError(err.message);
-                                  e.target.value = "";
+                                  update(i, "photo", null);
+                                  update(i, "photoError", err.message);
+                                  input.value = "";
                                 }
                               }}
                             />
                           </label>
+                          {answers[i].photoError && <p className="error" role="alert">{answers[i].photoError}</p>}
+                          {answers[i].photo && <div className="photo-preview"><img src={`data:${answers[i].photo.mime};base64,${answers[i].photo.data}`} alt={`Foto pilihan untuk ${h.name}`} /><p><Check size={16} /> {answers[i].photo.name || "Foto berhasil dipilih"}<small>Belum tersimpan ke Drive. Tekan Kirim Jurnalku setelah semua isian lengkap.</small></p></div>}
+                          </>
                         )}
                       </div>
                     )}

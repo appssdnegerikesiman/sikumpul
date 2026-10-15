@@ -18,7 +18,7 @@
 - [ ] Kirim ulang dari tab yang sama: hanya satu baris jurnal, satu dokumentasi aktif; foto lama di Trash.
 - [ ] Coba dari sesi lain: pembaruan ditolak, tidak ada endpoint membaca jurnal publik.
 - [ ] Pilih Sudah olahraga/makan tanpa foto: ditolak; Belum tidak meminta foto; ibadah tanpa foto diterima.
-- [ ] File palsu ber-MIME gambar atau >1,5 MB ditolak server.
+- [ ] File palsu ber-MIME gambar atau >5 MB ditolak server.
 - [ ] Simulasikan koneksi lambat/gagal, retry, klik ganda, dan pengisian serentak dari beberapa perangkat.
 - [ ] Akun non-guru, token kedaluwarsa, dan token aplikasi lain ditolak untuk semua operasi admin termasuk foto.
 - [ ] Akun guru di allowlist dapat memuat dashboard, detail, foto, rekap, dan daftar belum mengisi.

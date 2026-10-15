@@ -52,11 +52,11 @@ export function readPhoto(file) {
   return new Promise((resolve, reject) => {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type))
       return reject(new Error("Gunakan foto JPG, PNG, atau WebP."));
-    if (file.size > 1.5 * 1024 * 1024)
-      return reject(new Error("Ukuran foto maksimal 1,5 MB."));
+    if (file.size > 5 * 1024 * 1024)
+      return reject(new Error("Foto terlalu besar. Pilih foto maksimal 5 MB."));
     const r = new FileReader();
     r.onerror = () => reject(new Error("Foto tidak terbaca."));
-    r.onload = () => resolve({ mime: file.type, data: r.result.split(",")[1] });
+    r.onload = () => resolve({ mime: file.type, data: r.result.split(",")[1], name: file.name });
     r.readAsDataURL(file);
   });
 }
