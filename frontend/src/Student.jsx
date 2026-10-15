@@ -241,6 +241,24 @@ export default function Student({ habits, Illustration }) {
           <Illustration />
         </div>
       </section>
+      <section className="habit-guide panel" aria-labelledby="guide-title">
+        <span className="eyebrow">BACA BERSAMA ANAK</span>
+        <h2 id="guide-title">Apa itu 7 Kebiasaan Anak Indonesia Hebat?</h2>
+        <p>Tujuh kebiasaan sehari-hari untuk membangun anak yang sehat, mandiri, disiplin, dan peduli. Dampingi anak berlatih sedikit demi sedikit. Isi jurnal sesuai kenyataan.</p>
+        <details>
+          <summary>Kenali ketujuh kebiasaannya</summary>
+          <ol className="habit-reading">
+            <li><strong>Bangun pagi</strong><p>Memulai hari dengan teratur setelah beristirahat. Contoh: bangun, merapikan tempat tidur, lalu bersiap untuk kegiatan pagi.</p></li>
+            <li><strong>Beribadah</strong><p>Mendekatkan diri kepada Tuhan sesuai agama dan kepercayaan masing-masing. Biasakan berdoa, bersyukur, dan menghormati perbedaan.</p></li>
+            <li><strong>Berolahraga</strong><p>Membiasakan tubuh aktif bergerak. Anak dapat senam, berjalan, berlari, atau bermain aktif bersama keluarga.</p></li>
+            <li><strong>Makan sehat dan bergizi</strong><p>Membiasakan makanan beragam: makanan pokok, lauk, sayur, dan buah. Lengkapi dengan minum air putih.</p></li>
+            <li><strong>Gemar belajar</strong><p>Menumbuhkan rasa ingin tahu. Belajar bisa lewat membaca, bertanya, mencoba hal baru, atau berlatih bersama orang tua.</p></li>
+            <li><strong>Bermasyarakat</strong><p>Belajar peduli dan bekerja sama. Contoh: membantu keluarga, berbagi, menyapa tetangga, atau menjaga kebersihan lingkungan.</p></li>
+            <li><strong>Tidur cepat</strong><p>Membiasakan waktu tidur yang teratur agar anak mendapat istirahat cukup. Untuk jurnal hari ini, catat waktu tidur tadi malam.</p></li>
+          </ol>
+          <p className="small">Bacaan lanjutan: <a href="https://cerdasberkarakter.kemendikdasmen.go.id/gerakan7kebiasaan/" target="_blank" rel="noreferrer">Gerakan 7 KAIH — Kemendikdasmen</a>.</p>
+        </details>
+      </section>
       <section className="journal" ref={identityRef}>
         <div className="section-heading">
           <div>
@@ -263,6 +281,11 @@ export default function Student({ habits, Illustration }) {
             <small>WITA</small>
           </span>
         </div>
+        <ol className="journal-steps" aria-label="Cara mengisi jurnal">
+          <li><strong>1. Pilih anak</strong><span>Pilih kelas, absen, dan isi nama anak.</span></li>
+          <li><strong>2. Isi satu kartu</strong><span>Pilih Sudah atau Belum. Keterangan boleh dikosongkan.</span></li>
+          <li><strong>3. Tekan Simpan</strong><span>Tunggu tulisan Tersimpan. Kartu lain bisa diisi nanti.</span></li>
+        </ol>
         <div className="identity panel">
           <div className="panel-title">
             <span className="icon blue">
@@ -270,7 +293,7 @@ export default function Student({ habits, Illustration }) {
             </span>
             <div>
               <h3>Identitas anak</h3>
-              <p>Gunakan kelas dan absen yang sama saat melanjutkan.</p>
+              <p>Untuk anak kedua, tekan Ganti / Tambah Anak.</p>
             </div>
             <button className="secondary switch-child" disabled={busy !== null} onClick={switchChild}>Ganti / Tambah Anak</button>
           </div>
@@ -307,7 +330,7 @@ export default function Student({ habits, Illustration }) {
                 disabled={!identity.absen || busy !== null}
                 maxLength={100}
                 value={identity.nama}
-                placeholder="Diketik orang tua saat pertama mengisi"
+                placeholder="Ketik nama lengkap anak"
                 onChange={(e) => changeIdentity("nama", e.target.value)}
               />
             </label>
@@ -321,9 +344,7 @@ export default function Student({ habits, Illustration }) {
             {busy === "resume" ? "Membuka…" : "Buka jurnal tersimpan"}
           </button>
           <p className="small">
-            Lanjutkan di HP dan browser yang sama. Jangan hapus data situs
-            selama kegiatan berlangsung. Isi yang belum disimpan tidak otomatis
-            tersimpan.
+            Sudah pernah mengisi? Pilih kelas dan absen, lalu tekan Buka jurnal tersimpan. Gunakan HP dan browser yang sama dan jangan hapus data situs. Simpan perubahan sebelum keluar.
           </p>
         </div>
         {identity.kelas && identity.absen && <div className="active-child" role="status"><GraduationCap size={23}/><div><small>SEDANG MENGISI JURNAL</small><strong>{identity.nama.trim() || 'Lengkapi nama anak'}</strong><span>Kelas {identity.kelas} · Absen {identity.absen}</span></div><button className="text-button" disabled={busy !== null} onClick={switchChild}>Ganti anak</button></div>}
@@ -378,19 +399,18 @@ export default function Student({ habits, Illustration }) {
                 <p>{h.hint}</p>
                 {i === 6 && (
                   <p className="small">
-                    Diisi berdasarkan tidur tadi malam, bukan mengaku sudah
-                    tidur malam ini.
+                    Contoh: jurnal Jumat mencatat waktu tidur Kamis malam.
                   </p>
                 )}
                 {i === 2 && (
                   <a
                     className="video-link"
-                    href="https://www.youtube.com/watch?v=mSXOa-qFvSM"
+                    href="https://www.youtube.com/watch?v=5dDSeHvmDWk"
                     target="_blank"
                     rel="noreferrer"
                   >
                     <Play size={15} />
-                    Tonton Video Senam
+                    Tonton Senam Anak Indonesia Hebat
                   </a>
                 )}
                 <div
@@ -430,8 +450,8 @@ export default function Student({ habits, Illustration }) {
                 </div>
                 {answers[i].status && (
                   <div className="habit-extra">
-                    <label className="sr-only" htmlFor={`note-${i}`}>
-                      Keterangan {h.name}
+                    <label htmlFor={`note-${i}`}>
+                      Keterangan (opsional)
                     </label>
                     <input
                       disabled={busy !== null}
@@ -440,7 +460,7 @@ export default function Student({ habits, Illustration }) {
                       value={answers[i].note}
                       placeholder={
                         answers[i].status === "Belum"
-                          ? "Tidak apa-apa. Ceritakan jika kamu mau."
+                          ? "Boleh tulis alasannya, tidak wajib."
                           : h.placeholder
                       }
                       onChange={(e) => update(i, "note", e.target.value)}
@@ -454,7 +474,7 @@ export default function Student({ habits, Illustration }) {
                               ? "Ganti foto pilihan"
                               : answers[i].photoStored
                                 ? "Foto sudah tersimpan · ganti jika perlu"
-                                : `Tambahkan foto ${h.required ? "kegiatan" : "(opsional)"}`}
+                                : `Tambahkan foto ${h.required ? "(wajib jika Sudah)" : "(opsional)"}`}
                             <small>JPG, PNG, WebP · Maks. 5 MB</small>
                           </span>
                           <input
