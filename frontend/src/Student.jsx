@@ -35,12 +35,13 @@ export default function Student({ habits, Illustration }) {
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
   const [savedConsent, setSavedConsent] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
   const identityRef = useRef(null),
     saving = useRef(false);
   const done = answers.filter((a) => a.status === "Sudah").length,
     savedCount = answers.filter((a) => a.saved).length;
   const hasUnsaved = answers.some(a => !a.saved && (a.status || a.note || a.photo)) || consent !== savedConsent;
-  const confirmDiscard = () => !hasUnsaved || window.confirm('Masih ada isian atau izin foto yang belum disimpan. Pilih Batal untuk menyimpan dahulu, atau OK untuk meninggalkan perubahan ini.');
+  const requestAction = action => { if (hasUnsaved) setPendingAction(() => action); else action(); };
   useEffect(() => {
     if (!hasUnsaved) return;
     const warn = e => { e.preventDefault(); e.returnValue = ''; };
@@ -55,15 +56,17 @@ export default function Student({ habits, Illustration }) {
     setError('');
   };
   const switchChild = () => {
-    if (saving.current || !confirmDiscard()) return;
+    if (saving.current) return;
+    requestAction(() => {
     setIdentity({kelas:'',absen:'',nama:'',tanggal:today()});
     resetChild();
     identityRef.current?.scrollIntoView({behavior:'smooth'});
     requestAnimationFrame(() => identityRef.current?.querySelector('select')?.focus());
+    });
   };
   const changeIdentity = (key, value) => {
     if (saving.current || identity[key] === value) return;
-    if (key !== 'nama' && !confirmDiscard()) return;
+    const apply = () => {
     setIdentity((v) => ({
       ...v,
       [key]: value,
@@ -76,6 +79,8 @@ export default function Student({ habits, Illustration }) {
     if (key !== "nama") {
       resetChild();
     }
+    };
+    if (key === 'nama') apply(); else requestAction(apply);
   };
   const update = (i, key, value) =>
     setAnswers((v) =>
@@ -89,13 +94,16 @@ export default function Student({ habits, Illustration }) {
           : a,
       ),
     );
-  async function resume() {
+  function resume() {
     if (saving.current) return;
     if (!identity.kelas || !identity.absen) {
       setError("Pilih kelas dan nomor absen terlebih dahulu.");
       return;
     }
-    if (!confirmDiscard()) return;
+    requestAction(resumeConfirmed);
+  }
+  async function resumeConfirmed() {
+    if (saving.current) return;
     saving.current = true;
     setBusy("resume");
     setError("");
@@ -581,6 +589,7 @@ export default function Student({ habits, Illustration }) {
           )}
         </div>
       </section>
+      {pendingAction && <div className="modal-backdrop"><section className="modal panel child-warning" role="alertdialog" aria-modal="true" aria-labelledby="child-warning-title" aria-describedby="child-warning-description" onKeyDown={e => { if(e.key==='Escape'){e.preventDefault();setPendingAction(null);} if(e.key==='Tab'){const buttons=e.currentTarget.querySelectorAll('button');if(e.shiftKey&&document.activeElement===buttons[0]){e.preventDefault();buttons[1].focus();}else if(!e.shiftKey&&document.activeElement===buttons[1]){e.preventDefault();buttons[0].focus();}} }}><h2 id="child-warning-title">Ada perubahan belum disimpan</h2><p id="child-warning-description">Isian atau izin foto untuk {identity.nama.trim() || 'anak ini'} belum tersimpan. Kembali untuk menyimpan dahulu, atau lanjutkan dan tinggalkan perubahan tersebut.</p><div className="child-warning-actions"><button autoFocus className="primary" onClick={()=>setPendingAction(null)}>Tetap di jurnal ini</button><button className="secondary" onClick={()=>{const action=pendingAction;setPendingAction(null);action();}}>Lanjut tanpa menyimpan</button></div></section></div>}
     </main>
   );
 }
