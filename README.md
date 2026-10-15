@@ -68,4 +68,4 @@ Node 22+, pnpm 11.25.0. Konfigurasi publik VITE_API_URL tersedia lewat GitHub Ac
 node --test tests/backend.test.cjs
 ```
 
-18 tes memakai layanan Google tiruan: validasi, upsert, enrollment, rollback, privasi, resume dengan kunci, penyimpanan bertahap, pelestarian foto, dan pembedaan status kosong. Verifikasi browser dan layanan produksi tetap diperlukan. Jangan mengirim data dummy ke Sheet sekolah tanpa izin pengelola.
+19 tes memakai layanan Google tiruan: validasi, upsert, enrollment, rollback, privasi, resume dengan kunci, penyimpanan bertahap, pelestarian foto, dan pembedaan status kosong. Verifikasi browser dan layanan produksi tetap diperlukan. Jangan mengirim data dummy ke Sheet sekolah tanpa izin pengelola.

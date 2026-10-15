@@ -34,11 +34,36 @@ export default function Student({ habits, Illustration }) {
     [busy, setBusy] = useState(null),
     [error, setError] = useState(""),
     [message, setMessage] = useState("");
+  const [savedConsent, setSavedConsent] = useState(false);
   const identityRef = useRef(null),
     saving = useRef(false);
   const done = answers.filter((a) => a.status === "Sudah").length,
     savedCount = answers.filter((a) => a.saved).length;
+  const hasUnsaved = answers.some(a => !a.saved && (a.status || a.note || a.photo)) || consent !== savedConsent;
+  const confirmDiscard = () => !hasUnsaved || window.confirm('Masih ada isian atau izin foto yang belum disimpan. Pilih Batal untuk menyimpan dahulu, atau OK untuk meninggalkan perubahan ini.');
+  useEffect(() => {
+    if (!hasUnsaved) return;
+    const warn = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsaved]);
+  const resetChild = () => {
+    setAnswers(emptyAnswers());
+    setConsent(false);
+    setSavedConsent(false);
+    setMessage('');
+    setError('');
+  };
+  const switchChild = () => {
+    if (saving.current || !confirmDiscard()) return;
+    setIdentity({kelas:'',absen:'',nama:'',tanggal:today()});
+    resetChild();
+    identityRef.current?.scrollIntoView({behavior:'smooth'});
+    requestAnimationFrame(() => identityRef.current?.querySelector('select')?.focus());
+  };
   const changeIdentity = (key, value) => {
+    if (saving.current || identity[key] === value) return;
+    if (key !== 'nama' && !confirmDiscard()) return;
     setIdentity((v) => ({
       ...v,
       [key]: value,
@@ -49,9 +74,7 @@ export default function Student({ habits, Illustration }) {
           : {}),
     }));
     if (key !== "nama") {
-      setAnswers(emptyAnswers());
-      setMessage("");
-      setError("");
+      resetChild();
     }
   };
   const update = (i, key, value) =>
@@ -72,6 +95,7 @@ export default function Student({ habits, Illustration }) {
       setError("Pilih kelas dan nomor absen terlebih dahulu.");
       return;
     }
+    if (!confirmDiscard()) return;
     saving.current = true;
     setBusy("resume");
     setError("");
@@ -82,13 +106,16 @@ export default function Student({ habits, Illustration }) {
         setIdentity((v) => ({ ...v, nama: r.nama }));
         setAnswers(r.answers.map((a) => ({ ...a, saved: !!a.status })));
         setConsent(r.consent === true);
+        setSavedConsent(r.consent === true);
         setMessage(
           `Jurnal dibuka kembali. ${r.answered} dari 7 kebiasaan sudah tersimpan.`,
         );
-      } else
+      } else {
+        resetChild();
         setMessage(
           "Belum ada jurnal hari ini. Isi nama anak, lalu simpan kebiasaan pertamamu.",
         );
+      }
     } catch (e) {
       setError(e.message);
     } finally {
@@ -144,6 +171,7 @@ export default function Student({ habits, Illustration }) {
         consent,
         answers: payloadAnswers,
       });
+      setSavedConsent(consent);
       setAnswers((prev) =>
         prev.map((a, i) =>
           selected.includes(i) &&
@@ -236,6 +264,7 @@ export default function Student({ habits, Illustration }) {
               <h3>Identitas anak</h3>
               <p>Gunakan kelas dan absen yang sama saat melanjutkan.</p>
             </div>
+            <button className="secondary switch-child" disabled={busy !== null} onClick={switchChild}>Ganti / Tambah Anak</button>
           </div>
           <div className="identity-fields">
             <label>
@@ -289,6 +318,7 @@ export default function Student({ habits, Illustration }) {
             tersimpan.
           </p>
         </div>
+        {identity.kelas && identity.absen && <div className="active-child" role="status"><GraduationCap size={23}/><div><small>SEDANG MENGISI JURNAL</small><strong>{identity.nama.trim() || 'Lengkapi nama anak'}</strong><span>Kelas {identity.kelas} · Absen {identity.absen}</span></div><button className="text-button" disabled={busy !== null} onClick={switchChild}>Ganti anak</button></div>}
         <label className="consent panel consent-top">
           <input
             type="checkbox"
