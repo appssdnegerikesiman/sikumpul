@@ -19,7 +19,7 @@ frontend/                 React, Vite, Tailwind
 apps-script/
   Code.gs                 API, validasi, otorisasi, statistik, setup
   appsscript.json          Manifest izin dan WITA
-tests/backend.test.cjs    12 skenario otomatis, data fiktif di memori
+tests/backend.test.cjs    14 skenario otomatis, data fiktif di memori
 fixtures/                 Contoh CSV fiktif, tidak dimasukkan ke Sheet asli
 .github/workflows/pages.yml
 CHECKLIST.md
@@ -62,7 +62,7 @@ Pemetaan header yang diperiksa:
 
 `setup()` menambahkan header **Y Edit Key Hash** dan **Z Payload Hash** di JURNAL_HARIAN, lalu menyembunyikan kolom tersebut. Fungsi menolak jika header asli berubah atau Y/Z telah digunakan. Tidak menghapus/mengganti tab atau menimpa data yang ada. Kolom tersembunyi bukan batas keamanan; akses spreadsheet tetap harus privat.
 
-Guru harus mendaftarkan siswa di DATA_SISWA terlebih dahulu. Satu baris unik per kelas + absen, kelas persis `I A` s.d. `VI B`, absen 1–38, status `Aktif`. Nama dicocokkan setelah normalisasi spasi dan huruf. Jangan menaruh daftar asli ke repository. Dummy CSV pada fixtures hanya untuk lingkungan uji yang disetujui, jangan impor ke database sekolah secara otomatis.
+DATA_SISWA menyediakan 456 slot: kelas `I A` s.d. `VI B`, masing-masing absen 1–38. Nama kosong memakai status `Belum Terdaftar` dan tidak dihitung sebagai siswa aktif. Pada pengiriman pertama, backend mencatat nama yang diisi orang tua lalu mengubah status menjadi `Aktif`. Nama yang sudah terdaftar dicocokkan setelah normalisasi spasi dan huruf; koreksi nama dilakukan guru. Pendaftaran nama dapat tetap tercatat walaupun pengiriman jurnal berikutnya gagal, sehingga orang tua dapat mencoba ulang dengan nama yang sama. Jangan menaruh daftar asli ke repository. Dummy CSV pada fixtures hanya untuk lingkungan uji yang disetujui, jangan impor ke database sekolah secara otomatis.
 
 Tanggal jurnal baru disimpan sebagai teks ISO `YYYY-MM-DD`, waktu kirim/perubahan ISO UTC dengan akhiran Z. Rekap spreadsheet telah disesuaikan supaya menghitung tanggal serial Sheet lama maupun teks ISO baru. Dashboard menghitung langsung dari DATA_SISWA dan JURNAL_HARIAN; tidak bergantung pada rumus rekap. REKAP_SEKOLAH B2 tetap berupa `TODAY()`.
 

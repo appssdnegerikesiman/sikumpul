@@ -67,9 +67,7 @@ function submit_(input){
  const created=[];let committed=false;let uncertain=false;let docRow=0;let oldDoc=null;let docWritten=false;
  try{
   const journal=sheet_('JURNAL_HARIAN');if(journal.getRange('Y1').getValue()!=='Edit Key Hash')fail_('Backend belum disiapkan oleh guru.');
-  const roster=rows_('DATA_SISWA').filter(r=>String(r[4]).toLowerCase()==='aktif');
-  const student=roster.find(r=>String(r[2]).trim().toUpperCase()===p.kelas&&Number(r[3])===p.absen);
-  if(!student||clean_(student[1],100).toLocaleLowerCase('id')!==p.nama.toLocaleLowerCase('id'))fail_('Identitas belum cocok dengan daftar sekolah. Periksa kembali atau hubungi guru.');
+  registerStudent_(p);
   const existing=rows_('JURNAL_HARIAN');const at=existing.findIndex(r=>date_(r[1])===p.tanggal&&r[5]===p.kelas&&Number(r[6])===p.absen);
   const digest=hash_(p.editKey);if(at>=0&&existing[at][24]!==digest)fail_('Jurnal hari ini sudah tersimpan dari sesi lain. Hubungi guru untuk perbaikan.');
   const fingerprint=hash_(JSON.stringify({nama:p.nama,answers:p.answers,consent:p.consent}));
@@ -94,6 +92,21 @@ function submit_(input){
   if(!uncertain){if(docWritten)try{const range=sheet_('DOKUMENTASI').getRange(docRow,1,1,10);if(oldDoc)range.setValues([oldDoc]);else range.clearContent();}catch(ignore){console.error('Documentation rollback needs owner review');}
   created.forEach(f=>{try{f.setTrashed(true);}catch(ignore){console.warn('Orphan cleanup needed');}});}throw e;
  }finally{lock.releaseLock();}
+}
+function registerStudent_(p) {
+  const roster = rows_('DATA_SISWA');
+  const at = roster.findIndex(r => String(r[2]).trim().toUpperCase() === p.kelas && Number(r[3]) === p.absen);
+  const student = roster[at];
+  if (!student || ['aktif', 'belum terdaftar'].indexOf(String(student[4]).trim().toLowerCase()) < 0) {
+    fail_('Identitas belum cocok dengan daftar sekolah. Periksa kembali atau hubungi guru.');
+  }
+  const registered = clean_(student[1], 100);
+  if (registered && registered.toLocaleLowerCase('id') !== p.nama.toLocaleLowerCase('id')) {
+    fail_('Nama untuk kelas dan absen ini sudah terdaftar. Periksa ejaan nama atau hubungi guru untuk koreksi.');
+  }
+  if (!registered) {
+    sheet_('DATA_SISWA').getRange(at + 2, 2, 1, 4).setValues([[cell_(p.nama), p.kelas, p.absen, 'Aktif']]);
+  }
 }
 function journalObject_(r){return {id:r[0],tanggal:date_(r[1]),nama:r[4],kelas:r[5],absen:Number(r[6]),count:HABIT_COLUMNS.filter(c=>r[c]==='Sudah').length,answers:HABIT_COLUMNS.map(c=>({status:r[c],note:r[c+1]}))};}
 function days_(from,to){if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to))fail_('Tanggal tidak valid.');const a=new Date(from+'T00:00:00Z'),b=new Date(to+'T00:00:00Z');if(isNaN(a)||isNaN(b)||a.toISOString().slice(0,10)!==from||b.toISOString().slice(0,10)!==to||b<a||(b-a)/86400000>30)fail_('Pilih rentang maksimal 31 hari.');const dates=[];for(let d=+a;d<=+b;d+=86400000)dates.push(new Date(d).toISOString().slice(0,10));return dates;}
