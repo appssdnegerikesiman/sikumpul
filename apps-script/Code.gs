@@ -24,6 +24,7 @@ function doPost(e){try{
  if(!e||!e.postData||e.postData.contents.length>22000000)fail_('Permintaan tidak valid atau terlalu besar.');
  const req=JSON.parse(e.postData.contents);const p=req.payload||{};
  if(req.action==='publicSettings')return doGet();
+ if(req.action==='resumeJournal')return json_({ok:true,data:resume_(p)});
  if(req.action==='submitJournal'||req.action==='updateJournal')return json_({ok:true,data:submit_(p)});
  requireAdmin_(req.token);
  if(req.action==='adminSummary'||req.action==='adminClassRecap'||req.action==='adminReport')return json_({ok:true,data:summary_(p)});
@@ -48,12 +49,12 @@ function validate_(p){
  if(typeof p.editKey!=='string'||!/^[a-f0-9]{64}$/.test(p.editKey))fail_('Kunci pengiriman tidak valid. Muat ulang halaman.');
  if(!Array.isArray(p.answers)||p.answers.length!==7)fail_('Isi ketujuh kebiasaan.');
  const answers=p.answers.map((a,i)=>{
-  if(!a||['Sudah','Belum'].indexOf(a.status)<0)fail_('Pilih Sudah atau Belum untuk seluruh kebiasaan.');
+  if(!a||['','Sudah','Belum'].indexOf(a.status)<0)fail_('Status kebiasaan tidak valid.');
   const photo=a.status==='Sudah'&&Object.prototype.hasOwnProperty.call(PHOTO_COLUMNS,i)?a.photo:null;
-  if((i===2||i===3)&&a.status==='Sudah'&&!photo)fail_('Foto olahraga dan makan sehat wajib saat memilih Sudah.');
   if(photo)validatePhoto_(photo);
   return {status:a.status,note:clean_(a.note,500),photo:photo};
  });
+ if(!answers.some(a=>a.status))fail_('Pilih minimal satu kebiasaan untuk disimpan.');
  return {kelas,absen,nama,tanggal,answers,editKey:p.editKey,consent:p.consent===true,id:tanggal+'|'+kelas+'|'+absen};
 }
 function validatePhoto_(p){
@@ -62,36 +63,85 @@ function validatePhoto_(p){
  const valid=p.mime==='image/jpeg'?b[0]===255&&b[1]===216&&b[2]===255:p.mime==='image/png'?[137,80,78,71,13,10,26,10].every((x,i)=>b[i]===x):String.fromCharCode.apply(null,b.slice(0,4))==='RIFF'&&String.fromCharCode.apply(null,b.slice(8,12))==='WEBP';
  if(bytes.length>MAX_PHOTO||bytes.length<16||!valid)fail_('Isi atau ukuran foto tidak valid.');return bytes;
 }
-function submit_(input){
- const p=validate_(input);const lock=LockService.getScriptLock();if(!lock.tryLock(30000))fail_('Banyak teman sedang mengirim. Tunggu sebentar lalu coba lagi.');
- const created=[];let committed=false;let uncertain=false;let docRow=0;let oldDoc=null;let docWritten=false;
- try{
-  const journal=sheet_('JURNAL_HARIAN');if(journal.getRange('Y1').getValue()!=='Edit Key Hash')fail_('Backend belum disiapkan oleh guru.');
-  registerStudent_(p);
-  const existing=rows_('JURNAL_HARIAN');const at=existing.findIndex(r=>date_(r[1])===p.tanggal&&r[5]===p.kelas&&Number(r[6])===p.absen);
-  const digest=hash_(p.editKey);if(at>=0&&existing[at][24]!==digest)fail_('Jurnal hari ini sudah tersimpan dari sesi lain. Hubungi guru untuk perbaikan.');
-  const fingerprint=hash_(JSON.stringify({nama:p.nama,answers:p.answers,consent:p.consent}));
-  if(at>=0&&existing[at][25]===fingerprint)return {id:p.id,updated:true};
-  const cache=CacheService.getScriptCache();const rate='rate:'+hash_(p.id);if(cache.get(rate))fail_('Tunggu 20 detik sebelum memperbarui jurnal.');
-  const folderId=PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER_ID');
-  if(!folderId)fail_('Folder dokumentasi belum dikonfigurasi.');const folder=DriveApp.getFolderById(folderId);
-  if(folder.getSharingAccess()!==DriveApp.Access.PRIVATE)fail_('Folder dokumentasi harus privat. Hubungi guru.');
-  const sid=p.kelas+'-'+p.absen;const now=new Date().toISOString();
-  const doc=[p.id,p.tanggal,sid,cell_(p.nama),p.kelas,'','','',p.consent?'Ya':'Tidak',''];
-  p.answers.forEach((a,i)=>{if(a.photo){const ext={'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[a.photo.mime];const f=folder.createFile(Utilities.newBlob(validatePhoto_(a.photo),a.photo.mime,Utilities.getUuid()+'.'+ext));created.push(f);doc[PHOTO_COLUMNS[i]]=f.getId();}});
-  const docs=sheet_('DOKUMENTASI');const docRows=rows_('DOKUMENTASI');const di=docRows.findIndex(r=>r[0]===p.id);docRow=di>=0?di+2:docs.getLastRow()+1;oldDoc=di>=0?docRows[di].slice(0,10):null;
-  docs.getRange(docRow,1,1,10).setValues([doc]);docWritten=true;
-  const row=[p.id,p.tanggal,at>=0?existing[at][2]:now,sid,cell_(p.nama),p.kelas,p.absen];p.answers.forEach(a=>row.push(a.status,cell_(a.note)));row.push(p.answers.filter(a=>a.status==='Sudah').length,'Terkumpul',now,digest,fingerprint);
-  journal.getRange(at>=0?at+2:journal.getLastRow()+1,1,1,26).setValues([row]);SpreadsheetApp.flush();committed=true;cache.put(rate,'1',20);
-  if(oldDoc)[5,6,7].forEach(c=>{if(oldDoc[c])try{DriveApp.getFileById(oldDoc[c]).setTrashed(true);}catch(e){console.warn('Old photo cleanup pending');}});
-  return {id:p.id,updated:at>=0};
- }catch(e){
-  // A write may have succeeded before a transport/flush error. Confirm before compensating.
-  try{committed=rows_('JURNAL_HARIAN').some(r=>r[0]===p.id&&r[24]===hash_(p.editKey)&&r[25]===hash_(JSON.stringify({nama:p.nama,answers:p.answers,consent:p.consent})));}catch(ignore){uncertain=true;}
-  if(committed)return {id:p.id,updated:true};
-  if(!uncertain){if(docWritten)try{const range=sheet_('DOKUMENTASI').getRange(docRow,1,1,10);if(oldDoc)range.setValues([oldDoc]);else range.clearContent();}catch(ignore){console.error('Documentation rollback needs owner review');}
-  created.forEach(f=>{try{f.setTrashed(true);}catch(ignore){console.warn('Orphan cleanup needed');}});}throw e;
- }finally{lock.releaseLock();}
+function own_(row, doc) {
+  const answers = HABIT_COLUMNS.map((c, i) => ({status: row[c] || '', note: row[c + 1] || '', photo: null, photoStored: !!(doc && doc[PHOTO_COLUMNS[i]])}));
+  return {id: row[0], nama: row[4], answers, count: answers.filter(a => a.status === 'Sudah').length, answered: answers.filter(a => a.status).length, complete: answers.every(a => a.status), consent: !!(doc && doc[8] === 'Ya')};
+}
+function resume_(p) {
+  const kelas = class_(p.kelas), absen = Number(p.absen), tanggal = String(p.tanggal || '');
+  if (!Number.isInteger(absen) || absen < 1 || absen > 38 || tanggal !== day_() || typeof p.editKey !== 'string' || !/^[a-f0-9]{64}$/.test(p.editKey)) fail_('Identitas atau kunci perangkat tidak valid.');
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) fail_('Jurnal sedang disimpan. Coba lagi sebentar.');
+  try {
+    const row = rows_('JURNAL_HARIAN').find(r => date_(r[1]) === tanggal && r[5] === kelas && Number(r[6]) === absen);
+    if (!row) return {exists: false};
+    if (row[24] !== hash_(p.editKey)) fail_('Jurnal tidak dapat dibuka dari perangkat ini. Gunakan browser saat pengisian pertama atau hubungi guru.');
+    return Object.assign({exists: true}, own_(row, rows_('DOKUMENTASI').find(d => d[0] === row[0])));
+  } finally { lock.releaseLock(); }
+}
+function submit_(input) {
+  const p = validate_(input), lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) fail_('Banyak teman sedang mengirim. Tunggu sebentar lalu coba lagi.');
+  const created = [], retired = [];
+  let docWritten = false, docRow = 0, oldDoc = null, row = null, fingerprint = null;
+  try {
+    const journal = sheet_('JURNAL_HARIAN');
+    if (journal.getRange('Y1').getValue() !== 'Edit Key Hash') fail_('Backend belum disiapkan oleh guru.');
+    const existing = rows_('JURNAL_HARIAN');
+    const at = existing.findIndex(r => date_(r[1]) === p.tanggal && r[5] === p.kelas && Number(r[6]) === p.absen);
+    const digest = hash_(p.editKey);
+    if (at >= 0 && existing[at][24] !== digest) fail_('Jurnal hari ini sudah tersimpan dari perangkat lain. Gunakan browser saat pengisian pertama atau hubungi guru.');
+    registerStudent_(p);
+    const docs = sheet_('DOKUMENTASI'), docRows = rows_('DOKUMENTASI');
+    const di = docRows.findIndex(r => r[0] === p.id);
+    docRow = di >= 0 ? di + 2 : docs.getLastRow() + 1;
+    oldDoc = di >= 0 ? docRows[di].slice(0, 10) : null;
+    const sid = p.kelas + '-' + p.absen;
+    const doc = oldDoc ? oldDoc.slice() : [p.id, p.tanggal, sid, cell_(p.nama), p.kelas, '', '', '', 'Tidak', ''];
+    doc[8] = p.consent ? 'Ya' : 'Tidak';
+    const merged = HABIT_COLUMNS.map((c, i) => p.answers[i].status ? p.answers[i] : {status: at >= 0 ? existing[at][c] || '' : '', note: at >= 0 ? existing[at][c + 1] || '' : '', photo: null});
+    merged.forEach((a, i) => {
+      if ((i === 2 || i === 3) && a.status === 'Sudah' && !a.photo && !doc[PHOTO_COLUMNS[i]]) fail_('Foto olahraga dan makan sehat wajib saat memilih Sudah.');
+    });
+    fingerprint = hash_(JSON.stringify({answers:p.answers,consent:p.consent}));
+    if (at >= 0 && existing[at][25] === fingerprint) return Object.assign({updated:true}, own_(existing[at], doc));
+    const folderId = PropertiesService.getScriptProperties().getProperty('PHOTO_FOLDER_ID');
+    if (!folderId) fail_('Folder dokumentasi belum dikonfigurasi.');
+    const folder = DriveApp.getFolderById(folderId);
+    if (folder.getSharingAccess() !== DriveApp.Access.PRIVATE) fail_('Folder dokumentasi harus privat. Hubungi guru.');
+    p.answers.forEach((a, i) => {
+      if (!a.status || !Object.prototype.hasOwnProperty.call(PHOTO_COLUMNS, i)) return;
+      const col = PHOTO_COLUMNS[i];
+      if (a.status === 'Belum') { if (doc[col]) retired.push(doc[col]); doc[col] = ''; }
+      else if (a.photo) {
+        const ext = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'}[a.photo.mime];
+        const f = folder.createFile(Utilities.newBlob(validatePhoto_(a.photo), a.photo.mime, Utilities.getUuid() + '.' + ext));
+        created.push(f); if (doc[col]) retired.push(doc[col]); doc[col] = f.getId();
+      }
+    });
+
+    const now = new Date().toISOString(), answered = merged.filter(a => a.status).length;
+    row = [p.id, p.tanggal, at >= 0 ? existing[at][2] : now, sid, cell_(p.nama), p.kelas, p.absen];
+    merged.forEach(a => row.push(a.status, cell_(a.note)));
+    row.push(merged.filter(a => a.status === 'Sudah').length, answered === 7 ? 'Lengkap' : 'Bertahap (' + answered + '/7)', now, digest, fingerprint);
+    docs.getRange(docRow, 1, 1, 10).setValues([doc]); docWritten = true;
+    journal.getRange(at >= 0 ? at + 2 : journal.getLastRow() + 1, 1, 1, 26).setValues([row]);
+    SpreadsheetApp.flush();
+    try { photoLinks_(docs, docRow); } catch(ignore) { console.warn('Photo links can be repaired by owner'); }
+    retired.forEach(id => { try { DriveApp.getFileById(id).setTrashed(true); } catch(e) { console.warn('Old photo cleanup pending'); } });
+    return Object.assign({updated:at >= 0}, own_(row, doc));
+  } catch(e) {
+    let committed = false, uncertain = false;
+    if (row && fingerprint) {
+      try { committed = rows_('JURNAL_HARIAN').some(r => r[0] === p.id && r[24] === hash_(p.editKey) && r[25] === fingerprint); } catch(ignore) { uncertain = true; }
+    }
+    if (committed) return Object.assign({updated:true}, own_(row, rows_('DOKUMENTASI').find(d => d[0] === p.id)));
+    if (!uncertain) {
+      if (docWritten) { try { const range = sheet_('DOKUMENTASI').getRange(docRow,1,1,10); if(oldDoc)range.setValues([oldDoc]);else range.clearContent(); } catch(ignore) { console.error('Documentation rollback needs review'); } }
+      created.forEach(f => { try { f.setTrashed(true); } catch(ignore) { console.warn('Orphan cleanup needed'); } });
+    }
+    throw e;
+  } finally { lock.releaseLock(); }
 }
 function registerStudent_(p) {
   const roster = rows_('DATA_SISWA');
@@ -108,6 +158,13 @@ function registerStudent_(p) {
     sheet_('DATA_SISWA').getRange(at + 2, 2, 1, 4).setValues([[cell_(p.nama), p.kelas, p.absen, 'Aktif']]);
   }
 }
+function photoLinks_(docs, row) {
+  const labels = ['Lihat Foto Olahraga', 'Lihat Foto Makan', 'Lihat Foto Ibadah'];
+  const current = docs.getRange(1, 11, 1, 3).getValues()[0];
+  if (current.some((v, i) => v && v !== labels[i])) return;
+  docs.getRange(1, 11, 1, 3).setValues([labels]);
+  docs.getRange(row, 11, 1, 3).setValues([['F','G','H'].map((c,i) => '=IF(' + c + row + '="";"";HYPERLINK("https://drive.google.com/file/d/"&' + c + row + '&"/view";"' + labels[i] + '"))')]);
+}
 function journalObject_(r){return {id:r[0],tanggal:date_(r[1]),nama:r[4],kelas:r[5],absen:Number(r[6]),count:HABIT_COLUMNS.filter(c=>r[c]==='Sudah').length,answers:HABIT_COLUMNS.map(c=>({status:r[c],note:r[c+1]}))};}
 function days_(from,to){if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to))fail_('Tanggal tidak valid.');const a=new Date(from+'T00:00:00Z'),b=new Date(to+'T00:00:00Z');if(isNaN(a)||isNaN(b)||a.toISOString().slice(0,10)!==from||b.toISOString().slice(0,10)!==to||b<a||(b-a)/86400000>30)fail_('Pilih rentang maksimal 31 hari.');const dates=[];for(let d=+a;d<=+b;d+=86400000)dates.push(new Date(d).toISOString().slice(0,10));return dates;}
 function summary_(p){
@@ -115,7 +172,7 @@ function summary_(p){
  const rosterMap={};rows_('DATA_SISWA').filter(r=>String(r[4]).toLowerCase()==='aktif'&&(!kelas||r[2]===kelas)).forEach(r=>{rosterMap[r[2]+'|'+Number(r[3])]={nama:r[1],kelas:r[2],absen:Number(r[3])};});const roster=Object.keys(rosterMap).map(k=>rosterMap[k]);
  const unique={};rows_('JURNAL_HARIAN').filter(r=>date_(r[1])>=from&&date_(r[1])<=to&&rosterMap[r[5]+'|'+Number(r[6])]).forEach(r=>{unique[date_(r[1])+'|'+r[5]+'|'+Number(r[6])]=journalObject_(r);});const journals=Object.keys(unique).map(k=>unique[k]);
  const absent=[];days.forEach(d=>roster.forEach(s=>{if(!unique[d+'|'+s.kelas+'|'+s.absen])absent.push(Object.assign({tanggal:d},s));}));
- const opportunities=roster.length*days.length;const habits=HABIT_COLUMNS.map((c,i)=>({sudah:journals.filter(j=>j.answers[i].status==='Sudah').length,belum:journals.filter(j=>j.answers[i].status==='Belum').length,missing:opportunities-journals.length}));
+ const opportunities=roster.length*days.length;const habits=HABIT_COLUMNS.map((c,i)=>({sudah:journals.filter(j=>j.answers[i].status==='Sudah').length,belum:journals.filter(j=>j.answers[i].status==='Belum').length,missing:opportunities-journals.length,unfilled:journals.filter(j=>!j.answers[i].status).length}));
  const recap=CLASSES.filter(c=>!kelas||c===kelas).map(c=>{const total=roster.filter(s=>s.kelas===c).length,js=journals.filter(j=>j.kelas===c),n=total*days.length;return {kelas:c,total,submitted:js.length,missing:n-js.length,percent:n?Math.round(js.length/n*100):0,habits:HABIT_COLUMNS.map((_,i)=>js.filter(j=>j.answers[i].status==='Sudah').length)};});
  const ids=new Set(journals.map(j=>j.id));const documentation=[];rows_('DOKUMENTASI').filter(r=>ids.has(r[0])&&r[8]==='Ya').forEach(r=>Object.keys(PHOTO_COLUMNS).forEach(i=>{if(r[PHOTO_COLUMNS[i]])documentation.push({id:r[PHOTO_COLUMNS[i]],kind:PHOTO_NAMES[i],tanggal:date_(r[1]),kelas:r[4]});}));
  return {from,to,kelas,days:days.length,total:roster.length,opportunities,submitted:journals.length,missing:absent.length,percent:opportunities?Math.round(journals.length/opportunities*100):0,habits,classes:recap,rows:journals.map(j=>({id:j.id,tanggal:j.tanggal,nama:j.nama,kelas:j.kelas,absen:j.absen,count:j.count})),absent,documentation};

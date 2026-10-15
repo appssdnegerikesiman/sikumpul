@@ -1,162 +1,71 @@
-# Jurnal 7 KAIH — SD Negeri 3 Kesiman
+# Sikumpul — SD Negeri 3 Kesiman
 
-Aplikasi React + Vite + Tailwind, Lucide, Motion, dan Recharts; Google Apps Script sebagai API; spreadsheet sekolah sebagai database; Drive privat untuk foto. Bahasa Indonesia, waktu Asia/Makassar (WITA).
+Versi operasional untuk kegiatan Jumat, 16 Oktober 2026: orang tua mengisi Jurnal 7 KAIH bertahap; guru memantau lewat Google Sheets. Login/dashboard guru di website dihapus dari alur operasional. Laporan tabel/PDF disusun kemudian dari data Sheet sesuai kebutuhan sekolah.
 
-## Status pengerjaan dan batas verifikasi
+Website: https://appssdnegerikesiman.github.io/sikumpul/
 
-- Source portal siswa, dashboard guru, API Apps Script, laporan A4, CSV, dan workflow GitHub Pages tersedia.
-- Header keenam tab spreadsheet asli sudah diperiksa melalui koneksi Google Drive. Tab dan data yang ada dipertahankan. Pemisah rumus rekap diperbaiki untuk locale Indonesia, kriteria tanggal mendukung tanggal Sheet dan teks ISO, zona waktu diubah ke Asia/Makassar.
-- Build produksi berhasil. Tes backend berjalan dengan layanan Google tiruan, menggunakan data fiktif di memori. Tes ini **bukan** bukti deployment Google berhasil.
-- Pengiriman produksi, login Google, unggah Drive sesungguhnya, dan cetak laporan dengan data produksi harus diuji setelah deployment. Repositori tujuan: https://github.com/appssdnegerikesiman/sikumpul. URL API, OAuth Client ID, dan daftar email guru belum diberikan. Website belum dinyatakan siap digunakan siswa.
+## Cara orang tua mengisi
 
-## Struktur
+1. Buka tugas Jurnal 7 KAIH, pilih kelas dan absen, ketik nama lengkap anak saat pengisian pertama.
+2. Pilih Sudah atau Belum pada kebiasaan yang ingin dicatat; isi keterangan dan foto bila diminta.
+3. Tekan **Simpan kebiasaan ini**. Tunggu konfirmasi berhasil dari server. Tidak perlu mengisi semua kebiasaan sekaligus.
+4. Lanjutkan kartu lain sepanjang hari. Setelah menutup halaman, gunakan HP/browser yang sama, pilih kelas dan absen, lalu **Buka jurnal tersimpan**.
+5. Belum diisi berbeda dari Belum dilakukan. Tidur Cepat dicatat berdasarkan malam sebelumnya.
 
-```text
-frontend/                 React, Vite, Tailwind
-  src/main.jsx            Portal siswa, dashboard, laporan
-  src/api.js              Transport API, unggah, kunci sesi pembaruan
-  src/style.css           Responsif dan print A4
-apps-script/
-  Code.gs                 API, validasi, otorisasi, statistik, setup
-  appsscript.json          Manifest izin dan WITA
-tests/backend.test.cjs    14 skenario otomatis, data fiktif di memori
-fixtures/                 Contoh CSV fiktif, tidak dimasukkan ke Sheet asli
-.github/workflows/pages.yml
-CHECKLIST.md
-```
+Foto olahraga dan makan sehat wajib saat Sudah; ibadah opsional. JPG/PNG/WebP maksimal 5 MB per foto. Foto lama yang sudah tersimpan tidak perlu diunggah ulang saat mengisi kartu lain.
 
-## 1. Jalankan frontend lokal
+## Privasi dan melanjutkan jurnal
 
-Gunakan Node.js 22+ dan pnpm 11.25.0.
+Database utama tetap Google Sheets dan Drive. Browser hanya menyimpan **kunci acak perangkat** di localStorage, tanpa isi jurnal/foto/nama sebagai database lokal. Kunci sessionStorage versi lama dimigrasikan ketika perangkat yang sama digunakan.
+
+Membuka jurnal tersimpan memerlukan kunci acak yang cocok; kelas dan absen saja tidak memberikan akses baca. Jangan membersihkan data situs, memakai mode incognito, atau berganti browser selama pengisian. Jika kunci hilang, guru menangani koreksi lewat Sheet; tidak tersedia reset publik berdasarkan absen.
+
+Nama/kelas/absen bukan autentikasi kuat. Orang yang mengetahui identitas masih dapat mencoba pengisian pertama pada slot kosong. Jangan membagikan kunci perangkat atau akses editor Sheet/Drive kepada pihak yang tidak berwenang.
+
+## Guru lewat Google Sheets
+
+Spreadsheet yang digunakan tetap ID `1W5xBJOEPjWcSG1CM9BuGCdRxAaHd0DeRaeXcnEadyqk`.
+
+- **DATA_SISWA**: 12 kelas I A–VI B, masing-masing absen 1–38, total 456 slot. Nama kosong berstatus Belum Terdaftar; setelah pengiriman pertama nama tercatat dan status menjadi Aktif. Slot kosong tidak dihitung sebagai siswa aktif. Koreksi ejaan nama dilakukan guru di sini.
+- **JURNAL_HARIAN**: satu baris per tanggal/kelas/absen. Setiap penyimpanan menggabungkan kartu yang dikirim dengan isian sebelumnya. Kolom status jurnal menampilkan `Bertahap (n/7)` atau `Lengkap`. Sel kebiasaan kosong berarti belum diisi, bukan Belum.
+- **DOKUMENTASI**: ID foto pada F:H; kolom K:M berisi tautan Lihat Foto. File tetap privat, tautan hanya dapat dibuka akun Google yang memiliki izin Drive.
+- **REKAP_KELAS / REKAP_SEKOLAH**: ringkasan sesuai tanggal acuan REKAP_SEKOLAH B2. Sudah Mengisi berarti sudah memiliki setidaknya satu isian; lihat kolom W jurnal untuk kelengkapan tujuh kebiasaan. Jumlah Sudah tetap berdasarkan jawaban aktual.
+- **PENGATURAN**: identitas sekolah dan informasi program.
+
+Nama/file siswa tidak disalin ke repositori. Data dummy hanya di tests/fixtures. Rekap memakai roster aktif saat ini, bukan histori perubahan status siswa. Karena pendaftaran dilakukan saat pengisian pertama, daftar ini belum mencakup siswa nyata yang sama sekali belum pernah mendaftar; guru dapat melengkapi roster resmi bila ingin angka partisipasi terhadap seluruh siswa nyata.
+
+## Backend Apps Script
+
+Kode: `apps-script/Code.gs`, manifest: `apps-script/appsscript.json`.
+
+Jalankan setup satu kali sebagai pemilik untuk memeriksa header asli, menyiapkan hash pada Y:Z JURNAL_HARIAN, mengatur WITA, dan membuat folder Drive privat. Jangan menghapus tab/data yang sudah ada. Deployment berjalan sebagai pemilik dengan akses Anyone; hanya aksi publik terbatas yang dapat digunakan siswa. Operasi admin lama tetap ditolak tanpa otorisasi backend, dan tidak digunakan pada versi operasional ini.
+
+Aksi publik POST JSON melalui Content-Type text/plain:
+- publicSettings: identitas sekolah, tanggal WITA.
+- submitJournal / updateJournal: array tujuh jawaban; status kosong berarti kartu itu tidak diubah. Minimal satu status terisi. Foto baru hanya untuk kartu yang diubah. Server memvalidasi roster, kunci perangkat, status, dan file.
+- resumeJournal: tanggal/kelas/absen + editKey acak; hanya mengembalikan jurnal pemilik kunci. Tidak mengembalikan ID Drive atau foto orang lain.
+
+LockService mencegah konflik. Kiriman ulang memperbarui baris yang sama; unggahan gagal dibersihkan/dirollback bila status commit diketahui. Perubahan berbeda tidak lagi dibatasi 20 detik agar kartu dapat disimpan satu per satu. Periksa kuota Apps Script/Drive dan anjurkan foto seperlunya. Tidak ada penghapusan riwayat otomatis.
+
+Setelah mengubah kode: **Kelola deployment → Edit → Versi baru → Terapkan**, pertahankan deployment dan URL yang sama. Script Property PHOTO_FOLDER_ID tetap dipertahankan. Tidak diperlukan OAuth Client ID untuk alur siswa ini.
+
+## Frontend dan GitHub Pages
+
+React + Vite + Tailwind, Lucide. Struktur frontend/, apps-script/, tests/.
 
 ```sh
 cd frontend
-pnpm install
-cp .env.example .env.local
+pnpm install --frozen-lockfile
 pnpm dev
-```
-
-Pada PowerShell gunakan `Copy-Item .env.example .env.local`. Isi konfigurasi setelah memperoleh deployment API dan OAuth Client ID. Tanpa konfigurasi, portal tetap dapat ditinjau, tetapi tombol kirim memberikan pesan belum terhubung dan tidak menampilkan sukses palsu.
-
-```dotenv
-VITE_API_URL=https://script.google.com/macros/s/DEPLOYMENT_ID/exec
-VITE_GOOGLE_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
-```
-
-Kedua nilai tersebut adalah konfigurasi publik. Jangan memasukkan client secret, password, access token, ID token, daftar siswa, atau Script Properties ke frontend/repository. Tidak ada database localStorage. sessionStorage hanya menyimpan kunci acak pengiriman per tanggal/kelas/absen, tanpa isi jurnal atau nama siswa.
-
-## 2. Siapkan spreadsheet yang sudah ada
-
-Gunakan **hanya** spreadsheet ID `1W5xBJOEPjWcSG1CM9BuGCdRxAaHd0DeRaeXcnEadyqk`.
-
-Pemetaan header yang diperiksa:
-
-| Tab | Kolom dan fungsi |
-| --- | --- |
-| DATA_SISWA | A ID siswa; B Nama Lengkap; C Kelas; D No. Absen; E Status Aktif |
-| JURNAL_HARIAN | A ID; B Tanggal; C Waktu Kirim; D ID siswa; E Nama; F Kelas; G Absen; H:U tujuh pasangan status/keterangan; V jumlah Sudah; W status; X diperbarui |
-| DOKUMENTASI | A ID jurnal; B tanggal; C ID siswa; D nama; E kelas; F ID foto olahraga; G ID foto makan; H ID foto ibadah; I izin; J catatan |
-| REKAP_KELAS | A kelas; B siswa aktif; C terkumpul; D belum mengisi; E partisipasi; F:L tujuh kebiasaan |
-| REKAP_SEKOLAH | A indikator; B nilai. B2 tanggal acuan rekap |
-| PENGATURAN | A nama pengaturan; B nilai; C catatan yang telah tersedia |
-
-`setup()` menambahkan header **Y Edit Key Hash** dan **Z Payload Hash** di JURNAL_HARIAN, lalu menyembunyikan kolom tersebut. Fungsi menolak jika header asli berubah atau Y/Z telah digunakan. Tidak menghapus/mengganti tab atau menimpa data yang ada. Kolom tersembunyi bukan batas keamanan; akses spreadsheet tetap harus privat.
-
-DATA_SISWA menyediakan 456 slot: kelas `I A` s.d. `VI B`, masing-masing absen 1–38. Nama kosong memakai status `Belum Terdaftar` dan tidak dihitung sebagai siswa aktif. Pada pengiriman pertama, backend mencatat nama yang diisi orang tua lalu mengubah status menjadi `Aktif`. Nama yang sudah terdaftar dicocokkan setelah normalisasi spasi dan huruf; koreksi nama dilakukan guru. Pendaftaran nama dapat tetap tercatat walaupun pengiriman jurnal berikutnya gagal, sehingga orang tua dapat mencoba ulang dengan nama yang sama. Jangan menaruh daftar asli ke repository. Dummy CSV pada fixtures hanya untuk lingkungan uji yang disetujui, jangan impor ke database sekolah secara otomatis.
-
-Tanggal jurnal baru disimpan sebagai teks ISO `YYYY-MM-DD`, waktu kirim/perubahan ISO UTC dengan akhiran Z. Rekap spreadsheet telah disesuaikan supaya menghitung tanggal serial Sheet lama maupun teks ISO baru. Dashboard menghitung langsung dari DATA_SISWA dan JURNAL_HARIAN; tidak bergantung pada rumus rekap. REKAP_SEKOLAH B2 tetap berupa `TODAY()`.
-
-## 3. Buat dan deploy Google Apps Script
-
-1. Buka spreadsheet sekolah dengan akun pengelola, pilih **Extensions → Apps Script**.
-2. Salin `apps-script/Code.gs` ke editor. Tampilkan manifest pada pengaturan proyek dan salin `appsscript.json`.
-3. Jalankan fungsi `setup` sebagai pemilik. Tinjau dan setujui izin spreadsheet, Drive, dan permintaan eksternal Google. Fungsi membuat folder Drive privat khusus dokumentasi apabila Script Property `PHOTO_FOLDER_ID` belum ada. Tidak membuat spreadsheet baru.
-4. Buka **Project Settings → Script Properties**, isi:
-
-| Properti | Nilai |
-| --- | --- |
-| PHOTO_FOLDER_ID | Diisi setup, atau ID folder privat milik sekolah |
-| GOOGLE_CLIENT_ID | OAuth Web Client ID yang sama dengan frontend |
-| ADMIN_EMAILS | Email Google guru diizinkan, dipisahkan koma, tanpa wildcard |
-
-5. Pastikan folder bukan folder publik atau shared drive dengan anggota yang tidak berwenang. Jangan aktifkan “Anyone with the link”. Akun pemilik script harus tetap memiliki akses ke Sheet dan folder.
-6. **Deploy → New deployment → Web app**: Execute as **Me**, akses **Anyone** untuk menerima jurnal siswa. Operasi admin tetap memerlukan ID token Google valid dan allowlist di server. Bila kebijakan Workspace melarang web app anonim, minta pengelola domain menyiapkan opsi akses yang sesuai; jangan membuka Sheet/Drive untuk mengakalinya.
-7. Salin URL `/exec` ke VITE_API_URL. Setelah perubahan backend pilih **Manage deployments → Edit → New version**.
-
-API menggunakan POST `Content-Type: text/plain;charset=utf-8` agar tidak memicu preflight JSON yang tidak didukung Apps Script. Respons JSON tetap dibaca setelah redirect ContentService. Jangan menggunakan `mode:no-cors` karena respons opaque tidak dapat mengonfirmasi simpan. Uji dari origin GitHub Pages sebenarnya; kebijakan domain dapat memengaruhi redirect/CORS.
-
-### Aksi API
-
-```json
-{"action":"submitJournal","payload":{"kelas":"I A","absen":1,"nama":"Siswa Uji Alfa","tanggal":"YYYY-MM-DD","editKey":"64 karakter heksadesimal acak","consent":false,"answers":[{"status":"Belum","note":"","photo":null}]},"token":""}
-```
-
-Array answers wajib **tujuh** elemen. Contoh di atas hanya menunjukkan struktur satu elemen. Foto berbentuk `{mime:"image/jpeg",data:"BASE64_TANPA_PREFIX"}`. Tidak menerima URL atau path Drive dari siswa.
-
-| Aksi | Akses | Fungsi |
-| --- | --- | --- |
-| publicSettings / GET | Publik | Sekolah, WITA, tanggal saja |
-| submitJournal / updateJournal | Publik, validasi roster + kunci pembaruan | Simpan/perbarui jurnal beserta unggahan |
-| adminSummary | ID token + email allowlist | Statistik, baris jurnal, siswa belum mengisi |
-| adminClassRecap | ID token + email allowlist | Rekap dengan filter kelas |
-| adminReport | ID token + email allowlist | Data laporan, kandidat foto berizin |
-| adminDetail | ID token + email allowlist | Tujuh jawaban dan referensi foto |
-| adminPhoto | ID token + email allowlist | Byte foto sebagai data URL, bukan URL Drive publik |
-
-Filter admin `{from:"YYYY-MM-DD",to:"YYYY-MM-DD",kelas:""}` maksimal 31 hari. Detail memakai `{id:"ID_JURNAL"}`; foto memakai `{id:"ID_FILE"}`. Frontend mengirim ID token melalui badan POST dan menyimpannya hanya di memori. Tidak ada endpoint daftar siswa atau pembacaan jurnal publik.
-
-## 4. Login Google guru
-
-1. Dalam Google Cloud Console milik sekolah, konfigurasi OAuth consent screen untuk aplikasi sekolah dan buat **OAuth client ID → Web application**. Gunakan identitas organisasi yang benar.
-2. Masukkan **Authorized JavaScript origins**: `https://NAMA_AKUN.github.io`, origin custom domain jika ada, dan `http://localhost:5173` / `http://127.0.0.1:5174` untuk pengujian. Origin tidak memuat path repository.
-3. Jika aplikasi masih Testing, tambahkan akun guru sebagai test users. Ikuti kebijakan Google Workspace sekolah.
-4. Isi Client ID publik di frontend dan Script Properties. Isi ADMIN_EMAILS di server saja.
-5. Buka `/#guru`, masuk menggunakan tombol Google. Backend memverifikasi token melalui endpoint Google tokeninfo, lalu memeriksa audience, issuer, expiry, email_verified, dan email allowlist **pada setiap permintaan admin**. ID token dari aplikasi lain atau akun non-guru ditolak.
-
-Tidak ada password admin statis. Client secret tidak diperlukan untuk alur Google Identity Services ini. Jika sesi berakhir, keluar lalu masuk lagi. Jangan menampilkan data admin melalui mode demo publik. Data dummy pengujian ada di tests, bukan dashboard produksi.
-
-## 5. GitHub Pages
-
-Folder `jurnal-7-kaih` dirancang sebagai **root repository tersendiri**. Salin seluruh isinya, termasuk `.github`, ke repository tujuan; file workflow tidak akan aktif bila dibiarkan bersarang pada repository induk. Repository tujuan: `appssdnegerikesiman/sikumpul`. Source proyek ditempatkan di root repository.
-
-1. Buat/pilih repository dan unggah source proyek tanpa `.env.local`, node_modules, data siswa, atau kredensial.
-2. Di Settings → Secrets and variables → Actions → **Variables**, tambahkan VITE_API_URL dan VITE_GOOGLE_CLIENT_ID.
-3. Di Settings → Pages, pilih source **GitHub Actions**.
-4. Push ke branch `main` atau jalankan workflow manual.
-5. Workflow memasang dependency memakai lockfile, membangun frontend, lalu deploy `frontend/dist`. `base:'./'` mendukung path repository Pages. Dashboard memakai hash `#guru` sehingga tidak memerlukan fallback server routing.
-6. Cocokkan origin Pages dengan konfigurasi OAuth, lalu lakukan checklist produksi.
-
-Jika ingin mempertahankan proyek di subfolder repository lama, ubah `working-directory` workflow menjadi `jurnal-7-kaih/frontend`, path artifact menjadi `jurnal-7-kaih/frontend/dist`, lalu tempatkan workflow di `.github/workflows` pada **root repository lama**. Tinjau dampaknya pada website lama sebelum mengubah sumber Pages.
-
-## 6. Statistik dan laporan
-
-- Total siswa berasal dari roster aktif, bukan hitungan pengirim.
-- Statistik membedakan Sudah, Belum, dan Belum ada jurnal.
-- Duplikat lama tanggal/kelas/absen diringkas satu entri, sedangkan pengiriman baru menggunakan upsert dengan kunci tanggal/kelas/absen.
-- Untuk satu hari, partisipasi adalah jurnal / siswa aktif. Untuk rentang beberapa hari, denominator adalah **siswa aktif × hari kalender**. Akhir pekan tetap dihitung; pilih tanggal yang sesuai kegiatan sekolah. Roster saat ini dipakai untuk seluruh rentang; perubahan status siswa historis belum dilacak.
-- Modul laporan: filter periode/kelas → Tampilkan → Laporan Sekolah → lengkapi kepala sekolah, gelar/NIP/alamat jika tersedia → pilih maksimal empat foto berizin → Preview → Cetak PDF → Save as PDF, A4. Identitas tambahan diisi untuk laporan saat itu dan tidak disimpan ke source.
-- Kop, tujuan, ringkasan, tabel kelas, grafik batang cetak, analisis data, foto pilihan, kesimpulan, tanggal, dan tanda tangan tersedia. Kepala sekolah default Desak Nyoman Sari, tanpa gelar atau NIP rekaan.
-- CSV memakai BOM UTF-8 dan pemisah titik koma agar mudah dibuka Excel berlocale Indonesia. Sel teks berawalan formula dilindungi. CSV memuat jurnal terkumpul dan siswa tanpa jurnal sesuai filter.
-- Dokumentasi tidak dimasukkan otomatis. Hanya kandidat dengan izin `Ya` yang tersedia di pemilih laporan. Semua foto tersimpan privat; dashboard mengambil byte lewat server terautentikasi.
-
-## 7. Keandalan, privasi, dan kuota
-
-- Nomor absen bukan password. Roster nama/kelas/absen tidak merupakan autentikasi siswa kuat; orang yang sudah mengetahui identitas dapat mencoba kiriman pertama. Pembaruan membutuhkan kunci acak sesi pemilik kiriman, sehingga siswa lain tidak dapat menimpa hanya dengan absen. Tidak ada akses baca berdasarkan absen. Untuk kebutuhan verifikasi siswa yang lebih kuat, tambahkan akun sekolah atau kode undangan privat per siswa sebelum peluncuran, sesuai kebijakan sekolah.
-- Jangan menutup tab atau membersihkan sessionStorage sebelum selesai memperbarui jurnal. Kehilangan kunci tidak membuka hak reset publik; guru melakukan koreksi terverifikasi lewat Sheet. Entri lama tanpa hash juga hanya dikoreksi guru.
-- Backend membatasi tipe foto, ukuran 5 MB/foto, memeriksa magic bytes, maksimal tiga slot yang dikenal, total badan sekitar 22 juta karakter. Foto tidak diminta saat Belum. Foto ibadah opsional; foto olahraga/makan wajib saat Sudah. Anjurkan foto kegiatan/benda seperlunya tanpa informasi pribadi lain.
-- LockService melindungi pembaruan jurnal/dokumentasi bersamaan; lock menunggu maksimal 30 detik. Permintaan sibuk gagal dengan pesan retry. Unggahan dilakukan dalam lock agar konsisten; untuk sekolah besar jadwalkan pengisian bertahap, kompres foto, pantau durasi dan kuota.
-- Foto dibuat sebelum commit jurnal. Jika penulisan gagal, dokumentasi dikembalikan dan file baru ditaruh di Trash; retry dengan payload/kunci sama tidak menggandakan jurnal. File versi lama di-Trash setelah commit. Jika status commit tidak dapat dibaca, server mengembalikan error dan mempertahankan file untuk pemeriksaan pengelola. Tidak mengklaim sukses pada status tidak pasti.
-- Timeout frontend 90 detik tidak memastikan proses server dibatalkan; kirim ulang dengan identitas/sesi sama. Fingerprint payload membuat retry identik idempotent. Pembaruan berbeda dibatasi 20 detik per jurnal.
-- Statistik membaca data Sheet langsung dan membatasi rentang 31 hari, tetapi biaya baca tetap meningkat seiring riwayat jurnal. Arsipkan periode lama secara privat setelah kebijakan retensi sekolah ditetapkan. Jangan menghapus otomatis. Untuk skala lebih besar, pindahkan backend ke layanan dengan transaksi dan rate limit yang sesuai.
-- Jangan membagikan Sheet atau folder Drive secara publik. Batasi editor spreadsheet dan Apps Script. Jangan mencetak/log payload jurnal, token, base64, atau data siswa. Tinjau log kegagalan, Trash file yatim, kuota Apps Script/Drive, daftar guru dan retensi foto secara rutin.
-- Data laporan adalah data internal sekolah. Simpan CSV/PDF di lokasi yang diizinkan, pilih foto berizin, dan ikuti kebijakan persetujuan orang tua.
-
-## 8. Uji
-
-```sh
-node --test tests/backend.test.cjs
-cd frontend
 pnpm build
 ```
 
-Tes mencakup normalisasi, upsert/retry, kunci pembaruan, validasi, unggahan privat, rollback, rekap roster, periode, akses admin, pemeriksaan token, dan formula injection. Lanjutkan `CHECKLIST.md` untuk pengujian layanan Google sesungguhnya, aksesibilitas, responsivitas, serta cetak A4. Jangan mengisi data dummy ke Sheet asli tanpa keputusan pengelola.
+Node 22+, pnpm 11.25.0. Konfigurasi publik VITE_API_URL tersedia lewat GitHub Actions repository variable; .env.local digunakan untuk lokal dan diabaikan Git. Jangan memasukkan kredensial/token/data siswa ke source. Pages memakai workflow .github/workflows/pages.yml dan base relatif.
+
+## Pengujian
+
+```sh
+node --test tests/backend.test.cjs
+```
+
+18 tes memakai layanan Google tiruan: validasi, upsert, enrollment, rollback, privasi, resume dengan kunci, penyimpanan bertahap, pelestarian foto, dan pembedaan status kosong. Verifikasi browser dan layanan produksi tetap diperlukan. Jangan mengirim data dummy ke Sheet sekolah tanpa izin pengelola.
