@@ -15,15 +15,19 @@ export async function api(action, payload = {}, token = "") {
     throw new Error(
       "Koneksi sekolah belum dikonfigurasi. Guru perlu memasang URL backend terlebih dahulu.",
     );
-  if (action === "submitJournal" || action === "updateJournal") {
+  if (
+    action === "submitJournal" ||
+    action === "updateJournal" ||
+    action === "resumeJournal"
+  ) {
     const key = `7kaih:${payload.tanggal}:${payload.kelas}:${payload.absen}`;
-    let editKey = sessionStorage.getItem(key);
+    let editKey = localStorage.getItem(key) || sessionStorage.getItem(key);
     if (!editKey) {
       editKey = Array.from(crypto.getRandomValues(new Uint8Array(32)), (x) =>
         x.toString(16).padStart(2, "0"),
       ).join("");
-      sessionStorage.setItem(key, editKey);
     }
+    localStorage.setItem(key, editKey);
     payload = { ...payload, editKey };
   }
   const controller = new AbortController();
@@ -56,7 +60,12 @@ export function readPhoto(file) {
       return reject(new Error("Foto terlalu besar. Pilih foto maksimal 5 MB."));
     const r = new FileReader();
     r.onerror = () => reject(new Error("Foto tidak terbaca."));
-    r.onload = () => resolve({ mime: file.type, data: r.result.split(",")[1], name: file.name });
+    r.onload = () =>
+      resolve({
+        mime: file.type,
+        data: r.result.split(",")[1],
+        name: file.name,
+      });
     r.readAsDataURL(file);
   });
 }
