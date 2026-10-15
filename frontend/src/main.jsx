@@ -32,6 +32,7 @@ import "./style.css";
 const habits = [
   {
     name: "Bangun Pagi",
+    cover: "bangun-pagi",
     icon: Sun,
     color: "yellow",
     hint: "Jam berapa kamu bangun pagi ini?",
@@ -39,6 +40,7 @@ const habits = [
   },
   {
     name: "Beribadah",
+    cover: "beribadah",
     icon: Heart,
     color: "purple",
     hint: "Beribadah sesuai agama dan kepercayaanmu.",
@@ -47,6 +49,7 @@ const habits = [
   },
   {
     name: "Berolahraga",
+    cover: "berolahraga",
     icon: Activity,
     color: "orange",
     hint: "Yuk, Senam Vasudhaiva Kutumbakam!",
@@ -56,6 +59,7 @@ const habits = [
   },
   {
     name: "Makan Sehat dan Bergizi",
+    cover: "makan-sehat",
     icon: Apple,
     color: "green",
     hint: "Isi piringmu dengan makanan bergizi.",
@@ -65,6 +69,7 @@ const habits = [
   },
   {
     name: "Gemar Belajar",
+    cover: "gemar-belajar",
     icon: BookOpen,
     color: "blue",
     hint: "Hal baru apa yang kamu pelajari?",
@@ -72,6 +77,7 @@ const habits = [
   },
   {
     name: "Bermasyarakat",
+    cover: "bermasyarakat",
     icon: Users,
     color: "pink",
     hint: "Kebaikan kecilmu berarti besar.",

@@ -317,9 +317,11 @@ export default function Student({ habits, Illustration }) {
             </div>
             {habits.map((h, i) => (
               <article
-                className={`habit-card panel ${answers[i].saved ? "completed" : ""}`}
+                className={`habit-card panel ${h.cover ? "with-cover" : ""} ${answers[i].saved ? "completed" : ""}`}
                 key={h.name}
               >
+                {h.cover && <div className="habit-cover"><img src={`${import.meta.env.BASE_URL}covers/${h.cover}.webp`} alt={`Ilustrasi ${h.name}`} loading="lazy" decoding="async" width="800" height="1000" /></div>}
+                <div className="habit-card-content">
                 <div className="habit-top">
                   <span className={`icon ${h.color}`}>
                     <h.icon size={25} />
@@ -473,6 +475,7 @@ export default function Student({ habits, Illustration }) {
                     </button>
                   </div>
                 )}
+                </div>
               </article>
             ))}
           </div>
