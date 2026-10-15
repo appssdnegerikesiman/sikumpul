@@ -183,36 +183,43 @@ function Illustration() {
   );
 }
 function App() {
-  const [page, setPage] = useState(
-    location.hash === "#guru" ? "guru" : "siswa",
-  );
+  const route = () => location.hash === "#guru" ? "guru" : location.hash === "#jurnal-7-kaih" ? "jurnal" : "beranda";
+  const [page, setPage] = useState(route);
+  useEffect(() => {
+    const sync = () => { setPage(route()); window.scrollTo(0, 0); };
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+  const navigate = (target) => {
+    setPage(target);
+    location.hash = target === "guru" ? "guru" : target === "jurnal" ? "jurnal-7-kaih" : "";
+    window.scrollTo(0, 0);
+  };
   return (
     <>
       <header>
-        <a className="brand" href="#" onClick={() => setPage("siswa")}>
+        <a className="brand" href="#" onClick={() => navigate("beranda")}>
           <span className="brand-icon">
             <BookOpen />
           </span>
           <span>
-            Jurnal <b>7 KAIH</b>
+            <b>Sikumpul</b>
             <small>SD NEGERI 3 KESIMAN</small>
           </span>
         </a>
         <nav>
           <button
-            className={page === "siswa" ? "active" : ""}
+            className={page !== "guru" ? "active" : ""}
             onClick={() => {
-              setPage("siswa");
-              location.hash = "";
+              navigate("beranda");
             }}
           >
-            Portal Siswa
+            Tugas Hari Ini
           </button>
           <button
             className={page === "guru" ? "active" : ""}
             onClick={() => {
-              setPage("guru");
-              location.hash = "guru";
+              navigate("guru");
             }}
           >
             <ShieldCheck size={16} /> Ruang Guru
@@ -222,16 +229,37 @@ function App() {
           <span /> Denpasar, Bali
         </span>
       </header>
-      {page === "siswa" ? <Student /> : <Teacher />}
+      {page === "beranda" ? <Home onOpen={() => navigate("jurnal")} /> : page === "jurnal" ? <><div className="journal-back"><button className="text-button" onClick={() => navigate("beranda")}>← Kembali ke tugas hari ini</button></div><Student /></> : <Teacher />}
       <footer>
         <div className="brand">
-          <BookOpen size={21} /> SD Negeri 3 Kesiman
+          <BookOpen size={21} /> Sikumpul · SD Negeri 3 Kesiman
         </div>
         <span>Langkah kecil hari ini, masa depan hebat nanti.</span>
         <small>7 Kebiasaan Anak Indonesia Hebat</small>
       </footer>
     </>
   );
+}
+function Home({ onOpen }) {
+  return <main className="home-page">
+    <section className="hero home-hero">
+      <div className="hero-copy">
+        <span className="eyebrow"><Sparkles size={15} /> SELAMAT DATANG DI SIKUMPUL</span>
+        <h1>Halo, anak hebat!<br /><span>Yuk, lihat tugasmu.</span></h1>
+        <p>Tempat belajar, bercerita, dan mengumpulkan<br className="desktop" /> kebiasaan baik bersama SD Negeri 3 Kesiman.</p>
+        <span className="hero-note"><Heart size={15} /> Siapkan semangatmu untuk belajar hari ini.</span>
+      </div>
+      <div className="hero-art"><Illustration /><span className="float-label"><Sun size={21} /> Jumat penuh semangat!</span></div>
+    </section>
+    <section className="daily-tasks" aria-labelledby="daily-title">
+      <div className="section-heading"><div><span className="eyebrow">AGENDA BELAJARKU</span><h2 id="daily-title">Tugas hari ini</h2><p>Selesaikan kegiatanmu, lalu kumpulkan dengan jujur, ya.</p></div><span className="date-chip"><CalendarDays size={18} /><time dateTime="2026-10-16">Jumat, 16 Oktober 2026</time><small>WITA</small></span></div>
+      <article className="task-card panel">
+        <div className="task-art" aria-hidden="true"><span className="icon blue"><BookOpen size={36} /></span><div className="task-art-icons"><Sun size={23} /><Heart size={23} /><Leaf size={23} /></div><span>7 kebiasaan baik</span></div>
+        <div className="task-copy"><span className="task-label">TUGAS 01 · PEMBIASAAN HARIAN</span><h2>Jurnal 7 KAIH</h2><p>7 Kebiasaan Anak Indonesia Hebat</p><p>Ceritakan kegiatan baikmu: bangun pagi, beribadah, berolahraga, makan sehat, belajar, bermasyarakat, dan tidur cepat.</p><div className="task-meta"><span><GraduationCap size={16} /> Kelas I–VI</span><span><CalendarDays size={16} /> Jumat, 16 Oktober</span></div><button className="primary" onClick={onOpen}>Buka Jurnal 7 KAIH <ArrowRight size={19} /></button></div>
+      </article>
+      <div className="home-reminder"><Heart size={20} /><p>Belum melakukan semua kebiasaan? Tidak apa-apa. Setiap usaha kecilmu tetap berharga.</p></div>
+    </section>
+  </main>;
 }
 function Student() {
   const [started, start] = useState(false),
