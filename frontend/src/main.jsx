@@ -85,6 +85,7 @@ const habits = [
   },
   {
     name: "Tidur Cepat",
+    cover: "tidur-cepat",
     icon: Moon,
     color: "purple",
     hint: "Ceritakan waktu tidurmu tadi malam.",
